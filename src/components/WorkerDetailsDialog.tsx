@@ -32,6 +32,9 @@ import {
   ChevronUp
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import TaskDetailsDialog from "@/components/TaskDetailsDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Worker {
   uuid_user: string;
@@ -63,7 +66,10 @@ interface WorkerDetailsDialogProps {
 
 export const WorkerDetailsDialog = ({ worker, open, onOpenChange }: WorkerDetailsDialogProps) => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const { isUserOnline, getUserStatus } = useAuth();
+  const { toast } = useToast();
   
   if (!worker) return null;
 
@@ -190,6 +196,56 @@ export const WorkerDetailsDialog = ({ worker, open, onOpenChange }: WorkerDetail
   };
 
   const roleConfig = getRoleConfig(worker.role);
+
+  const handleTaskClick = async (completedTask: any) => {
+    try {
+      // Загружаем полную информацию о задаче
+      const { data: taskData, error } = await supabase
+        .from('zadachi')
+        .select(`
+          *,
+          users!zadachi_responsible_user_id_fkey (
+            full_name
+          )
+        `)
+        .eq('id_zadachi', completedTask.task_id)
+        .single();
+
+      if (error) throw error;
+
+      if (taskData) {
+        // Преобразуем данные в формат для TaskDetailsDialog
+        const task = {
+          id_zadachi: taskData.id_zadachi,
+          uuid_zadachi: taskData.uuid_zadachi,
+          title: taskData.title,
+          description: taskData.description,
+          status: taskData.status,
+          priority: taskData.priority,
+          due_date: taskData.due_date,
+          created_at: taskData.created_at,
+          completed_at: taskData.completed_at,
+          execution_time_seconds: taskData.execution_time_seconds,
+          responsible_user_name: (taskData as any).users?.full_name,
+          responsible_user_id: taskData.responsible_user_id,
+          zakaz_id: taskData.zakaz_id,
+          salary: taskData.salary,
+          checklist_photo: taskData.checklist_photo,
+          order_title: completedTask.order_title
+        };
+
+        setSelectedTask(task);
+        setIsTaskDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('Error loading task details:', error);
+      toast({
+        variant: "destructive",
+        title: "Ошибка",
+        description: "Не удалось загрузить детали задачи"
+      });
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -400,7 +456,11 @@ export const WorkerDetailsDialog = ({ worker, open, onOpenChange }: WorkerDetail
                       return (b.task_id || 0) - (a.task_id || 0);
                     })
                     .map((task, index) => (
-                    <div key={`${task.task_id}-${index}`} className="bg-card border border-card-border rounded-lg p-6 micro-lift hover:shadow-md transition-all duration-200">
+                    <div 
+                      key={`${task.task_id}-${index}`} 
+                      className="bg-card border border-card-border rounded-lg p-6 micro-lift hover:shadow-md transition-all duration-200 cursor-pointer"
+                      onClick={() => handleTaskClick(task)}
+                    >
                       <div className="flex items-start justify-between">
                         <div className="flex-1 space-y-3">
                           <div className="flex items-center gap-3">
@@ -455,6 +515,15 @@ export const WorkerDetailsDialog = ({ worker, open, onOpenChange }: WorkerDetail
           )}
         </div>
       </DialogContent>
+
+      <TaskDetailsDialog
+        task={selectedTask}
+        isOpen={isTaskDialogOpen}
+        onClose={() => setIsTaskDialogOpen(false)}
+        onTaskUpdated={() => {
+          // Можно добавить обновление данных работника если нужно
+        }}
+      />
     </Dialog>
   );
 };
