@@ -32,9 +32,6 @@ import {
   ChevronUp
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import OrderDetailsDialog from "@/components/OrderDetailsDialog";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 interface Worker {
   uuid_user: string;
@@ -66,58 +63,9 @@ interface WorkerDetailsDialogProps {
 
 export const WorkerDetailsDialog = ({ worker, open, onOpenChange }: WorkerDetailsDialogProps) => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [showOrderDetails, setShowOrderDetails] = useState(false);
   const { isUserOnline, getUserStatus } = useAuth();
   
   if (!worker) return null;
-
-  const handleTaskClick = async (taskId: number) => {
-    try {
-      // Получаем данные задачи и связанного заказа
-      const { data: taskData, error: taskError } = await supabase
-        .from('zadachi')
-        .select('zakaz_id')
-        .eq('id_zadachi', taskId)
-        .single();
-
-      if (taskError) throw taskError;
-      if (!taskData.zakaz_id) {
-        toast.error('Задача не связана с заказом');
-        return;
-      }
-
-      // Получаем полные данные заказа по id_zakaza
-      const { data: orderData, error: orderError } = await supabase
-        .from('zakazi')
-        .select('*')
-        .eq('id_zakaza', taskData.zakaz_id)
-        .single();
-
-      if (orderError) throw orderError;
-
-      // Преобразуем данные в формат для OrderDetailsDialog
-      const order = {
-        id: orderData.uuid_zakaza,
-        title: orderData.title || 'Без названия',
-        client: orderData.client_name || 'Неизвестен',
-        description: orderData.description || '',
-        value: orderData.total_amount || 0,
-        priority: orderData.priority || 'medium',
-        dueDate: orderData.due_date || null,
-        assignee: 'Не назначен',
-        status: orderData.status || 'cutting',
-        currentStage: 1,
-        vse_zadachi: orderData.vse_zadachi || []
-      };
-
-      setSelectedOrder(order);
-      setShowOrderDetails(true);
-    } catch (error) {
-      console.error('Error loading order:', error);
-      toast.error('Не удалось загрузить данные заказа');
-    }
-  };
 
   const formatExecutionTime = (seconds?: number) => {
     if (!seconds) return null;
@@ -452,11 +400,7 @@ export const WorkerDetailsDialog = ({ worker, open, onOpenChange }: WorkerDetail
                       return (b.task_id || 0) - (a.task_id || 0);
                     })
                     .map((task, index) => (
-                    <div 
-                      key={`${task.task_id}-${index}`} 
-                      className="bg-card border border-card-border rounded-lg p-6 micro-lift hover:shadow-md transition-all duration-200 cursor-pointer"
-                      onClick={() => handleTaskClick(task.task_id)}
-                    >
+                    <div key={`${task.task_id}-${index}`} className="bg-card border border-card-border rounded-lg p-6 micro-lift hover:shadow-md transition-all duration-200">
                       <div className="flex items-start justify-between">
                         <div className="flex-1 space-y-3">
                           <div className="flex items-center gap-3">
@@ -510,14 +454,6 @@ export const WorkerDetailsDialog = ({ worker, open, onOpenChange }: WorkerDetail
             </Card>
           )}
         </div>
-
-        {selectedOrder && (
-          <OrderDetailsDialog 
-            order={selectedOrder}
-            isOpen={showOrderDetails}
-            onClose={() => setShowOrderDetails(false)}
-          />
-        )}
       </DialogContent>
     </Dialog>
   );
