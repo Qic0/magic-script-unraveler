@@ -199,44 +199,57 @@ export const WorkerDetailsDialog = ({ worker, open, onOpenChange }: WorkerDetail
 
   const handleTaskClick = async (completedTask: any) => {
     try {
-      // Загружаем полную информацию о задаче
+      // Загружаем полную информацию о задаче и заказе
       const { data: taskData, error } = await supabase
         .from('zadachi')
         .select(`
           *,
           users!zadachi_responsible_user_id_fkey (
             full_name
+          ),
+          zakazi!inner (
+            title
           )
         `)
         .eq('id_zadachi', completedTask.task_id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
-
-      if (taskData) {
-        // Преобразуем данные в формат для TaskDetailsDialog
-        const task = {
-          id_zadachi: taskData.id_zadachi,
-          uuid_zadachi: taskData.uuid_zadachi,
-          title: taskData.title,
-          description: taskData.description,
-          status: taskData.status,
-          priority: taskData.priority,
-          due_date: taskData.due_date,
-          created_at: taskData.created_at,
-          completed_at: taskData.completed_at,
-          execution_time_seconds: taskData.execution_time_seconds,
-          responsible_user_name: (taskData as any).users?.full_name,
-          responsible_user_id: taskData.responsible_user_id,
-          zakaz_id: taskData.zakaz_id,
-          salary: taskData.salary,
-          checklist_photo: taskData.checklist_photo,
-          order_title: completedTask.order_title
-        };
-
-        setSelectedTask(task);
-        setIsTaskDialogOpen(true);
+      if (error) {
+        console.error('Error fetching task:', error);
+        throw error;
       }
+
+      if (!taskData) {
+        toast({
+          variant: "destructive",
+          title: "Ошибка",
+          description: "Задача не найдена"
+        });
+        return;
+      }
+
+      // Преобразуем данные в формат для TaskDetailsDialog
+      const task = {
+        id_zadachi: taskData.id_zadachi,
+        uuid_zadachi: taskData.uuid_zadachi,
+        title: taskData.title,
+        description: taskData.description,
+        status: taskData.status,
+        priority: taskData.priority,
+        due_date: taskData.due_date,
+        created_at: taskData.created_at,
+        completed_at: taskData.completed_at,
+        execution_time_seconds: taskData.execution_time_seconds,
+        responsible_user_name: (taskData as any).users?.full_name,
+        responsible_user_id: taskData.responsible_user_id,
+        zakaz_id: taskData.zakaz_id,
+        salary: taskData.salary,
+        checklist_photo: taskData.checklist_photo,
+        order_title: (taskData as any).zakazi?.title
+      };
+
+      setSelectedTask(task);
+      setIsTaskDialogOpen(true);
     } catch (error) {
       console.error('Error loading task details:', error);
       toast({
