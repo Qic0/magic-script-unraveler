@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { Calendar, User, Phone, Mail, Building, MessageSquare, Clock, FileText, Tag, CheckCircle, Circle, PlayCircle, Check, Hammer, Scissors, Drill, Wrench, Brush, Palette, Paperclip } from "lucide-react";
 import { FileAttachmentsList } from '@/components/FileAttachmentsList';
+import { FileUpload } from '@/components/FileUpload';
 import { useOrderAttachments } from '@/hooks/useOrderAttachments';
 interface OrderDetailsDialogProps {
   order: Order | null;
@@ -133,7 +134,8 @@ const OrderDetailsDialog = ({
   onClose
 }: OrderDetailsDialogProps) => {
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
-  const { attachments, isLoading: attachmentsLoading, downloadFile, deleteFile } = useOrderAttachments(order?.id);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const { attachments, isLoading: attachmentsLoading, downloadFile, deleteFile, uploadFiles, isUploading } = useOrderAttachments(order?.id);
   
   if (!order) return null;
 
@@ -411,7 +413,21 @@ const OrderDetailsDialog = ({
                   Прикрепленные файлы
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                <FileUpload
+                  onFilesSelected={setSelectedFiles}
+                  onUpload={async (files) => {
+                    if (order?.id) {
+                      await uploadFiles({ files, orderId: order.id });
+                      setSelectedFiles([]);
+                    }
+                  }}
+                  maxFiles={10}
+                  maxFileSize={20}
+                  acceptedTypes={['image/*', 'application/pdf', '.doc', '.docx', '.xls', '.xlsx', '.dwg', '.dxf']}
+                  disabled={isUploading}
+                />
+                
                 {attachmentsLoading ? (
                   <div className="text-center py-4 text-muted-foreground">
                     Загрузка файлов...
