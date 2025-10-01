@@ -130,6 +130,9 @@ export const FileAttachmentsList: React.FC<FileAttachmentsListProps> = ({
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <span className="text-sm font-semibold text-muted-foreground min-w-[24px]">
+                      {index + 1}.
+                    </span>
                     {getFileIcon(file.file_type)}
                     <div className="flex-1 min-w-0">
                       <h5 className="text-sm font-medium truncate">
