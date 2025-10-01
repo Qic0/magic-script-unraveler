@@ -9,10 +9,11 @@ import { CreateTaskDialog } from "./CreateTaskDialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
-import { Calendar, User, Phone, Mail, Building, MessageSquare, Clock, FileText, Tag, CheckCircle, Circle, PlayCircle, Check, Hammer, Scissors, Drill, Wrench, Brush, Palette, Paperclip } from "lucide-react";
+import { Calendar, User, Phone, Mail, Building, MessageSquare, Clock, FileText, Tag, CheckCircle, Circle, PlayCircle, Check, Hammer, Scissors, Drill, Wrench, Brush, Palette, Paperclip, Plus } from "lucide-react";
 import { FileAttachmentsList } from '@/components/FileAttachmentsList';
 import { FileUpload } from '@/components/FileUpload';
 import { useOrderAttachments } from '@/hooks/useOrderAttachments';
+import { motion, AnimatePresence } from 'framer-motion';
 interface OrderDetailsDialogProps {
   order: Order | null;
   isOpen: boolean;
@@ -134,6 +135,7 @@ const OrderDetailsDialog = ({
   onClose
 }: OrderDetailsDialogProps) => {
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const { attachments, isLoading: attachmentsLoading, downloadFile, deleteFile, uploadFiles, isUploading } = useOrderAttachments(order?.id);
   
@@ -408,25 +410,49 @@ const OrderDetailsDialog = ({
             {/* Прикрепленные файлы */}
             <Card>
               <CardHeader>
-                <CardTitle className="font-display font-bold text-lg flex items-center gap-2">
-                  <Paperclip className="h-5 w-5" />
-                  Прикрепленные файлы
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="font-display font-bold text-lg flex items-center gap-2">
+                    <Paperclip className="h-5 w-5" />
+                    Прикрепленные файлы
+                  </CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsUploadOpen(!isUploadOpen)}
+                    className="gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Добавить
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FileUpload
-                  onFilesSelected={setSelectedFiles}
-                  onUpload={async (files) => {
-                    if (order?.id) {
-                      await uploadFiles({ files, orderId: order.id });
-                      setSelectedFiles([]);
-                    }
-                  }}
-                  maxFiles={10}
-                  maxFileSize={20}
-                  acceptedTypes={['image/*', 'application/pdf', '.doc', '.docx', '.xls', '.xlsx', '.dwg', '.dxf']}
-                  disabled={isUploading}
-                />
+                <AnimatePresence>
+                  {isUploadOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                      className="overflow-hidden"
+                    >
+                      <FileUpload
+                        onFilesSelected={setSelectedFiles}
+                        onUpload={async (files) => {
+                          if (order?.id) {
+                            await uploadFiles({ files, orderId: order.id });
+                            setSelectedFiles([]);
+                            setIsUploadOpen(false);
+                          }
+                        }}
+                        maxFiles={10}
+                        maxFileSize={20}
+                        acceptedTypes={['image/*', 'application/pdf', '.doc', '.docx', '.xls', '.xlsx', '.dwg', '.dxf']}
+                        disabled={isUploading}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 
                 {attachmentsLoading ? (
                   <div className="text-center py-4 text-muted-foreground">
