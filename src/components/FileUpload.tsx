@@ -161,8 +161,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        whileHover={!disabled ? { scale: 1.02 } : {}}
-        whileTap={!disabled ? { scale: 0.98 } : {}}
       >
         <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-4" />
         <p className="text-sm text-muted-foreground mb-2">
