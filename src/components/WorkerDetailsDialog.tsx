@@ -199,27 +199,19 @@ export const WorkerDetailsDialog = ({ worker, open, onOpenChange }: WorkerDetail
 
   const handleTaskClick = async (completedTask: any) => {
     try {
-      // Загружаем полную информацию о задаче и заказе
-      const { data: taskData, error } = await supabase
+      // Загружаем задачу без джойнов (нет FK) и параллельно подтягиваем связанные данные
+      const { data: taskRow, error: taskError } = await supabase
         .from('zadachi')
-        .select(`
-          *,
-          users!zadachi_responsible_user_id_fkey (
-            full_name
-          ),
-          zakazi!inner (
-            title
-          )
-        `)
+        .select('*')
         .eq('id_zadachi', completedTask.task_id)
         .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching task:', error);
-        throw error;
+      if (taskError) {
+        console.error('Error fetching task:', taskError);
+        throw taskError;
       }
 
-      if (!taskData) {
+      if (!taskRow) {
         toast({
           variant: "destructive",
           title: "Ошибка",
@@ -228,24 +220,48 @@ export const WorkerDetailsDialog = ({ worker, open, onOpenChange }: WorkerDetail
         return;
       }
 
+      // Параллельно получаем имя ответственного и название заказа (если есть ссылки)
+      const [userRes, orderRes] = await Promise.all([
+        taskRow.responsible_user_id
+          ? supabase
+              .from('users')
+              .select('full_name')
+              .eq('uuid_user', taskRow.responsible_user_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null } as any),
+        taskRow.zakaz_id
+          ? supabase
+              .from('zakazi')
+              .select('title, client_name')
+              .eq('id_zakaza', taskRow.zakaz_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null } as any)
+      ]);
+
+      if (userRes.error) console.warn('Failed to load user for task:', userRes.error);
+      if (orderRes.error) console.warn('Failed to load order for task:', orderRes.error);
+
+      const responsible_user_name = userRes.data?.full_name as string | undefined;
+      const order_title = orderRes.data ? `${orderRes.data.title}${orderRes.data.client_name ? ` (${orderRes.data.client_name})` : ''}` : undefined;
+
       // Преобразуем данные в формат для TaskDetailsDialog
       const task = {
-        id_zadachi: taskData.id_zadachi,
-        uuid_zadachi: taskData.uuid_zadachi,
-        title: taskData.title,
-        description: taskData.description,
-        status: taskData.status,
-        priority: taskData.priority,
-        due_date: taskData.due_date,
-        created_at: taskData.created_at,
-        completed_at: taskData.completed_at,
-        execution_time_seconds: taskData.execution_time_seconds,
-        responsible_user_name: (taskData as any).users?.full_name,
-        responsible_user_id: taskData.responsible_user_id,
-        zakaz_id: taskData.zakaz_id,
-        salary: taskData.salary,
-        checklist_photo: taskData.checklist_photo,
-        order_title: (taskData as any).zakazi?.title
+        id_zadachi: taskRow.id_zadachi,
+        uuid_zadachi: taskRow.uuid_zadachi,
+        title: taskRow.title,
+        description: taskRow.description,
+        status: taskRow.status,
+        priority: taskRow.priority,
+        due_date: taskRow.due_date,
+        created_at: taskRow.created_at,
+        completed_at: taskRow.completed_at,
+        execution_time_seconds: taskRow.execution_time_seconds,
+        responsible_user_name,
+        responsible_user_id: taskRow.responsible_user_id,
+        zakaz_id: taskRow.zakaz_id,
+        salary: taskRow.salary,
+        checklist_photo: taskRow.checklist_photo,
+        order_title
       };
 
       setSelectedTask(task);
